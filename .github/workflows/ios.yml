@@ -1,0 +1,61 @@
+# Builds the iOS app on a GitHub macOS runner, as an unsigned .ipa.
+# Source: the public repository Erzoy38/MarioPartyDS-native; translated game code and libraries:
+# the release "data" of this private repository. The .ipa stays here as a private artifact.
+# Install it with Sideloadly, which signs it with your Apple ID.
+name: iOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or commit of MarioPartyDS-native"
+        default: "main"
+        required: true
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 150
+    permissions:
+      contents: read
+    steps:
+      - name: Source from MarioPartyDS-native
+        uses: actions/checkout@v4
+        with:
+          repository: Erzoy38/MarioPartyDS-native
+          ref: ${{ inputs.ref }}
+          path: src
+
+      - name: Game code and libraries from the release "data"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download data --repo "${{ github.repository }}" --pattern mpds-laptop-data.zip --dir "$RUNNER_TEMP"
+          unzip -q "$RUNNER_TEMP/mpds-laptop-data.zip" -d src
+          rm "$RUNNER_TEMP/mpds-laptop-data.zip"
+          ls src/native/generated | wc -l
+
+      - name: Tools
+        run: |
+          xcodebuild -version
+          cmake --version
+
+      - name: Build the unsigned .ipa
+        working-directory: src
+        run: bash ios/build.sh --unsigned 2>&1 | tee "$RUNNER_TEMP/build.log"; exit ${PIPESTATUS[0]}
+
+      - name: The .ipa
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MarioPartyDS-unsigned-ipa
+          path: src/native/build-ios-unsigned/ipa/MarioPartyDS-unsigned.ipa
+          retention-days: 14
+
+      - name: Build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: ${{ runner.temp }}/build.log
+          retention-days: 14
