@@ -31,7 +31,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release download data --repo "${{ github.repository }}" --pattern mpds-laptop-data.zip --dir "$RUNNER_TEMP"
-          unzip -q "$RUNNER_TEMP/mpds-laptop-data.zip" -d src
+          unzip -q -o "$RUNNER_TEMP/mpds-laptop-data.zip" -d src
           rm "$RUNNER_TEMP/mpds-laptop-data.zip"
           ls src/native/generated | wc -l
 
